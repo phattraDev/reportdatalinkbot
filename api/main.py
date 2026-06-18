@@ -21,7 +21,24 @@ from cache import invalidate_user_cache
 TZ_OFFSET = int(os.getenv("TZ_OFFSET", "7"))
 LOCAL_TZ = timezone(timedelta(hours=TZ_OFFSET))
 
-app = FastAPI(title="Telegram Bot Dashboard API")
+from contextlib import asynccontextmanager
+from telegram import Update
+
+telegram_app = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global telegram_app
+    from bot.main import setup_application
+    telegram_app = setup_application()
+    await telegram_app.initialize()
+    await telegram_app.start()
+    yield
+    if telegram_app:
+        await telegram_app.stop()
+        await telegram_app.shutdown()
+
+app = FastAPI(title="Telegram Bot Dashboard API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -427,6 +444,31 @@ def delete_user(user_id: int, db: Session = Depends(get_db), _=Depends(verify_to
 def health():
     """Public ping target — use with cron/UptimeRobot to prevent free-tier spin-down."""
     return {"ok": True}
+
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    if not telegram_app:
+        raise HTTPException(status_code=503, detail="Telegram application not initialized")
+    try:
+        data = await request.json()
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return {"ok": False}
+
+
+@app.get("/api/set_webhook")
+async def set_webhook(url: str, _=Depends(verify_token)):
+    if not telegram_app:
+        raise HTTPException(status_code=503, detail="Telegram application not initialized")
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Webhook URL must use HTTPS")
+    webhook_url = f"{url.rstrip('/')}/webhook"
+    result = await telegram_app.bot.set_webhook(webhook_url)
+    return {"success": result, "url": webhook_url}
 
 
 # Serve dashboard

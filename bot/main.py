@@ -655,7 +655,7 @@ async def post_init(app):
     logger.info("Bot commands menu set")
 
 
-def main():
+def setup_application():
     init_db()
     logger.info(f"[INIT] FORWARD_CHAT_IDS={FORWARD_CHAT_IDS}")
     request = HTTPXRequest(connection_pool_size=8, httpx_kwargs={"verify": False})
@@ -683,7 +683,11 @@ def main():
     
     # Message handler LAST in group 2 (lowest priority)
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_report_command), group=2)
-    
+    return app
+
+
+def main():
+    app = setup_application()
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
