@@ -28,15 +28,18 @@ telegram_app = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global telegram_app
-    from bot.main import setup_application
-    telegram_app = setup_application()
-    await telegram_app.initialize()
-    await telegram_app.start()
-    yield
-    if telegram_app:
-        await telegram_app.stop()
-        await telegram_app.shutdown()
+    if os.getenv("VERCEL") == "1":
+        global telegram_app
+        from bot.main import setup_application
+        telegram_app = setup_application()
+        await telegram_app.initialize()
+        await telegram_app.start()
+        yield
+        if telegram_app:
+            await telegram_app.stop()
+            await telegram_app.shutdown()
+    else:
+        yield
 
 app = FastAPI(title="Telegram Bot Dashboard API", lifespan=lifespan)
 
