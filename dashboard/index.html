@@ -1,0 +1,2062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Disable zoom: prevent double-tap and pinch zoom -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+
+  <title>Link Report Dashboard</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0a0c12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Link Report" />
+
+  <!-- Icons (inline SVG as data URI — no extra files needed) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%234f46e5'/%3E%3Cpath d='M48 136V80l48-32 48 32v56H48z' fill='none' stroke='white' stroke-width='10' stroke-linejoin='round'/%3E%3Cpath d='M80 136v-28h32v28' fill='none' stroke='white' stroke-width='10' stroke-linejoin='round'/%3E%3C/svg%3E" />
+
+  <!-- Prevent tap highlight on mobile -->
+  <style>
+    * { -webkit-tap-highlight-color: transparent; touch-action: pan-x pan-y; }
+    html { -webkit-text-size-adjust: 100%; }
+  </style>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body { 
+      background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+      min-height: 100vh;
+    }
+    .glass {
+      background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .card-hover { 
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover { 
+      border-color: rgba(99,102,241,0.5); 
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(99,102,241,0.15);
+    }
+    .badge { 
+      display:inline-flex; align-items:center; gap:4px; 
+      padding:4px 12px; border-radius:999px; 
+      font-size:11px; font-weight:600; 
+      border: 1px solid;
+      transition: all 0.2s;
+    }
+    .badge-comment { background:#6366f118; color:#a5b4fc; border-color:#6366f130; }
+    .badge-report  { background:#ef444418; color:#fca5a5; border-color:#ef444430; }
+    .badge-like    { background:#22c55e18; color:#86efac; border-color:#22c55e30; }
+    .badge-unknown { background:#ffffff08; color:#94a3b8; border-color:#ffffff15; }
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:#1a1f35; }
+    ::-webkit-scrollbar-thumb { 
+      background: linear-gradient(180deg, #4f46e5 0%, #6366f1 100%); 
+      border-radius:8px; 
+    }
+    ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #6366f1 0%, #818cf8 100%); }
+    .stat-icon { 
+      width:48px; height:48px; border-radius:14px; 
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    tr:hover td { background: rgba(99,102,241,0.05); }
+    .input-field {
+      width:100%; 
+      background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:12px; padding:11px 16px; color:#e2e8f0; font-size:14px; outline:none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .input-field:focus { 
+      border-color: #6366f1; 
+      background: rgba(99,102,241,0.08);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    .input-field::placeholder { color: #64748b; }
+    .input-field option {
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+    select.input-field {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 35px;
+    }
+    .filter-pill {
+      padding: 7px 16px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      color: #94a3b8; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    .filter-pill:hover { 
+      color: #e2e8f0; 
+      background: rgba(255,255,255,0.08); 
+      border-color: rgba(255,255,255,0.15);
+      transform: translateY(-1px);
+    }
+    .filter-pill.active {
+      color: #fff; 
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); 
+      border-color: rgba(99,102,241,0.4);
+      box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+    }
+    .user-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .user-card:hover { 
+      border-color: rgba(99,102,241,0.3); 
+      background: rgba(99,102,241,0.06);
+      transform: translateX(4px);
+      box-shadow: 0 4px 16px rgba(99,102,241,0.15);
+    }
+    .user-card.blocked { border-color: rgba(239,68,68,0.2); }
+    .user-card.allowed { border-color: rgba(34,197,94,0.2); }
+    .avatar-wrap {
+      position: relative; width: 48px; height: 48px; flex-shrink: 0;
+    }
+    .avatar-wrap img, .avatar-fallback {
+      width: 48px; height: 48px; border-radius: 14px; object-fit: cover;
+    }
+    .avatar-fallback {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #94a3b8;
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+    }
+    .avatar-status {
+      position: absolute; bottom: -2px; right: -2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2.5px solid #0d1220;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .status-dot-allowed { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+    .status-dot-blocked { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .toggle-switch {
+      position: relative; width: 48px; height: 26px; flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: linear-gradient(135deg, rgba(239,68,68,0.4) 0%, rgba(220,38,38,0.4) 100%);
+      border-radius: 999px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; height: 20px; width: 20px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .toggle-switch input:checked + .toggle-slider { 
+      background: linear-gradient(135deg, rgba(34,197,94,0.6) 0%, rgba(22,163,74,0.6) 100%);
+    }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+    .toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: wait; }
+    @media (max-width: 640px) {
+      .user-card { grid-template-columns: auto 1fr; }
+      .user-card-actions { grid-column: 1 / -1; justify-content: flex-end; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px; padding-top: 10px; }
+    }
+    .name-card {
+      position: relative;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+      padding: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .name-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--name-accent) 0%, transparent 100%);
+      opacity: 0.8;
+    }
+    .name-card:hover {
+      border-color: rgba(16,185,129,0.35);
+      background: rgba(16,185,129,0.05);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(16,185,129,0.15);
+    }
+    .name-card-top { display: flex; align-items: flex-start; gap: 12px; }
+    .name-avatar {
+      width: 40px; height: 40px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; flex-shrink: 0;
+      line-height: 1;
+    }
+    .name-text { font-size: 14px; font-weight: 600; color: #f1f5f9; line-height: 1.35; word-break: break-word; }
+    .usage-bar-track {
+      height: 4px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); margin-top: 10px; overflow: hidden;
+    }
+    .usage-bar-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--name-accent), rgba(255,255,255,0.2));
+      transition: width 0.3s ease;
+    }
+    .name-card-list {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .name-card-list:hover { border-color: rgba(16,185,129,0.2); background: rgba(255,255,255,0.04); }
+    .view-toggle-btn {
+      padding: 7px 11px; border-radius: 10px; color: #64748b;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    .view-toggle-btn:hover { color: #94a3b8; background: rgba(255,255,255,0.05); }
+    .view-toggle-btn.active { 
+      color: #fff; 
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+    }
+    .btn-primary-emerald {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 11px 20px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-primary-emerald:hover { 
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16,185,129,0.4);
+    }
+    .btn-primary-emerald:active { transform: translateY(0); }
+    .btn-primary-emerald:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    #toast-wrap {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: min(92vw, 420px);
+    }
+    .toast-item {
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: linear-gradient(135deg, rgba(15,17,23,0.95) 0%, rgba(20,25,40,0.95) 100%);
+      backdrop-filter: blur(20px);
+      color: #e2e8f0;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+      animation: toast-in .25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .toast-item.error { 
+      border-color: rgba(239,68,68,0.4); 
+      background: linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(15,17,23,0.95) 100%);
+      color: #fecaca; 
+    }
+    .toast-item.success { 
+      border-color: rgba(34,197,94,0.4); 
+      background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(15,17,23,0.95) 100%);
+      color: #bbf7d0; 
+    }
+    @keyframes toast-in {
+      from { transform: translateX(100px) scale(0.9); opacity: 0; }
+      to { transform: translateX(0) scale(1); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    #view-overview:not(.hidden), #view-reports:not(.hidden), #view-history:not(.hidden), 
+    #view-names:not(.hidden), #view-users:not(.hidden), #view-dailylog:not(.hidden) {
+      animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+  <div id="toast-wrap"></div>
+
+  <!-- ── LOGIN SCREEN ── -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <!-- Background decoration -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+    </div>
+    
+    <div class="glass rounded-3xl p-10 w-full max-w-md space-y-8 relative z-10 shadow-2xl">
+      <!-- Logo -->
+      <div class="flex flex-col items-center gap-4">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/40">
+          <i data-lucide="bar-chart-2" class="w-8 h-8 text-white"></i>
+        </div>
+        <div class="text-center">
+          <h1 class="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+          <p class="text-slate-400 text-sm mt-1">Sign in to continue</p>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-slate-300 mb-2 block font-medium">Username</label>
+          <input id="login-user" type="text" placeholder="Enter username" class="input-field"
+            onkeydown="if(event.key==='Enter') document.getElementById('login-pass').focus()" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 mb-2 block font-medium">Password</label>
+          <div class="relative">
+            <input id="login-pass" type="password" placeholder="Enter password" class="input-field pr-12"
+              onkeydown="if(event.key==='Enter') doLogin()" />
+            <button onclick="togglePass()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors">
+              <i id="eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <p id="login-error" class="text-red-400 text-xs hidden bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">Invalid username or password.</p>
+      </div>
+
+      <button onclick="doLogin()" id="login-btn"
+        class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold py-3 rounded-xl transition-all duration-300 text-sm shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5">
+        Sign In
+      </button>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="dashboard" class="hidden">
+
+    <!-- Sidebar -->
+    <div class="fixed left-0 top-0 h-full w-20 bg-gradient-to-b from-[#0d1220] to-[#0a0e1a] border-r border-white/10 flex flex-col items-center py-6 gap-8 z-10 shadow-2xl">
+      <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <i data-lucide="bar-chart-2" class="w-6 h-6 text-white"></i>
+      </div>
+      <div class="flex flex-col gap-4 mt-2">
+        <button onclick="showTab('overview')" id="tab-overview" class="nav-btn p-2.5 rounded-xl text-indigo-400 bg-gradient-to-br from-indigo-500/15 to-indigo-600/10 shadow-lg shadow-indigo-500/20" title="Overview">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        </button>
+        <button onclick="showTab('reports')" id="tab-reports" class="nav-btn p-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200" title="Reports">
+          <i data-lucide="file-text" class="w-5 h-5"></i>
+        </button>
+        <button onclick="showTab('history')" id="tab-history" class="nav-btn p-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200" title="History">
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+        </button>
+        <button onclick="showTab('names')" id="tab-names" class="nav-btn p-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200" title="Names">
+          <i data-lucide="users" class="w-5 h-5"></i>
+        </button>
+        <button onclick="showTab('users')" id="tab-users" class="nav-btn p-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200" title="Users">
+          <i data-lucide="shield" class="w-5 h-5"></i>
+        </button>
+        <button onclick="showTab('dailylog')" id="tab-dailylog" class="nav-btn p-2.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200" title="Daily Summary Log">
+          <i data-lucide="calendar-days" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="mt-auto flex flex-col gap-3">
+        <button onclick="loadAll()" class="p-2.5 rounded-xl text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all duration-200" title="Refresh">
+          <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+        </button>
+        <button onclick="doLogout()" class="p-2.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200" title="Logout">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="ml-20 p-8 max-w-6xl mx-auto space-y-8" id="main-content">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between pt-2">
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-tight">Link Report Dashboard</h1>
+          <p class="text-slate-400 text-sm mt-1 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Telegram Bot Monitor
+          </p>
+        </div>
+        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+          <i data-lucide="clock" class="w-4 h-4 text-slate-400"></i>
+          <span id="last-updated" class="text-xs text-slate-400 font-medium">—</span>
+        </div>
+      </div>
+
+      <!-- Overview Tab -->
+      <div id="view-overview">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div class="glass rounded-2xl p-6 card-hover relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/20 to-transparent rounded-full blur-2xl"></div>
+            <div class="relative">
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-slate-300 text-sm font-medium">Total Reports</span>
+                <div class="stat-icon bg-gradient-to-br from-indigo-500/20 to-indigo-600/10">
+                  <i data-lucide="database" class="w-5 h-5 text-indigo-400"></i>
+                </div>
+              </div>
+              <p id="stat-total" class="text-4xl font-bold text-white tracking-tight">—</p>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-6 card-hover relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-sky-500/20 to-transparent rounded-full blur-2xl"></div>
+            <div class="relative">
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-slate-300 text-sm font-medium">Today's Reports</span>
+                <div class="stat-icon bg-gradient-to-br from-sky-500/20 to-sky-600/10">
+                  <i data-lucide="calendar" class="w-5 h-5 text-sky-400"></i>
+                </div>
+              </div>
+              <p id="stat-today" class="text-4xl font-bold bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">—</p>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-6 card-hover relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl"></div>
+            <div class="relative">
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-slate-300 text-sm font-medium">Known Names</span>
+                <div class="stat-icon bg-gradient-to-br from-emerald-500/20 to-emerald-600/10">
+                  <i data-lucide="user-check" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+              </div>
+              <p id="stat-names" class="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent tracking-tight">—</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4 gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+                <span class="font-semibold text-sm whitespace-nowrap">Today's Summary</span>
+              </div>
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button id="reset-summary-btn" onclick="resetSummary()" title="Reset to auto" class="flex items-center gap-1 text-xs bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Reset</span>
+                </button>
+                <button id="edit-summary-btn" onclick="startEditSummary()" title="Edit" class="flex items-center gap-1 text-xs bg-white/5 hover:bg-white/10 text-slate-300 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Edit</span>
+                </button>
+                <button id="save-summary-btn" onclick="saveSummary()" title="Save" class="hidden items-center gap-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Save</span>
+                </button>
+                <button id="cancel-summary-btn" onclick="cancelEditSummary()" title="Cancel" class="hidden items-center gap-1 text-xs bg-white/5 hover:bg-white/10 text-slate-400 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Cancel</span>
+                </button>
+                <button onclick="copySummary()" title="Copy" class="flex items-center gap-1 text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Copy</span>
+                </button>
+              </div>
+            </div>
+            <pre id="summary-box" class="text-sm text-slate-300 whitespace-pre-wrap bg-black/20 rounded-xl p-4 min-h-[140px] leading-relaxed">Loading...</pre>
+            <textarea id="summary-edit-box" class="hidden input-field text-sm whitespace-pre-wrap bg-black/20 rounded-xl p-4 min-h-[140px] leading-relaxed resize-y font-mono" rows="10"></textarea>
+          </div>
+
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+              <span class="font-semibold text-sm">Top Names</span>
+            </div>
+            <div id="names-list" class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              <p class="text-slate-500 text-sm">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Tab -->
+      <div id="view-reports" class="hidden">
+        <div class="glass rounded-2xl p-5">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-2">
+              <i data-lucide="link" class="w-4 h-4 text-indigo-400"></i>
+              <span class="font-semibold text-sm">Recent Reports</span>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <input type="text" id="filter-user" placeholder="Filter by user..." 
+                class="input-field text-xs py-2 px-3 w-full sm:w-40" 
+                oninput="filterReports()" />
+              <input type="text" id="filter-name" placeholder="Filter by name..." 
+                class="input-field text-xs py-2 px-3 w-full sm:w-40" 
+                oninput="filterReports()" />
+              <select id="filter-action" class="input-field text-xs py-2 px-3 w-full sm:w-32" 
+                onchange="filterReports()">
+                <option value="">All Actions</option>
+                <option value="comment">Comment</option>
+                <option value="report">Report</option>
+                <option value="like">Like</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-slate-500 border-b border-white/5 text-xs uppercase tracking-wide">
+                  <th class="text-left pb-3 pr-4">User</th>
+                  <th class="text-left pb-3 pr-4">Target Name</th>
+                  <th class="text-left pb-3 pr-4">Link</th>
+                  <th class="text-left pb-3 pr-4">Action</th>
+                  <th class="text-left pb-3">Time</th>
+                </tr>
+              </thead>
+              <tbody id="reports-table" class="divide-y divide-white/5">
+                <tr><td colspan="5" class="py-6 text-slate-500 text-center text-sm">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Tab -->
+      <div id="view-history" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Reports Over Time Chart -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="trending-up" class="w-4 h-4 text-indigo-400"></i>
+              <span class="font-semibold text-sm">Reports Over Time</span>
+            </div>
+            <canvas id="chart-timeline" class="w-full" style="max-height:280px"></canvas>
+          </div>
+
+          <!-- Action Types Distribution -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+              <span class="font-semibold text-sm">Action Types</span>
+            </div>
+            <canvas id="chart-actions" class="w-full" style="max-height:280px"></canvas>
+          </div>
+
+          <!-- Top Contributors -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="users-2" class="w-4 h-4 text-sky-400"></i>
+              <span class="font-semibold text-sm">Top Contributors</span>
+            </div>
+            <canvas id="chart-users" class="w-full" style="max-height:280px"></canvas>
+          </div>
+
+          <!-- Top Names -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+              <span class="font-semibold text-sm">Most Reported Names</span>
+            </div>
+            <canvas id="chart-names" class="w-full" style="max-height:280px"></canvas>
+          </div>
+        </div>
+
+        <!-- All Reports Table -->
+        <div class="glass rounded-2xl p-5 mt-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-2">
+              <i data-lucide="database" class="w-4 h-4 text-indigo-400"></i>
+              <span class="font-semibold text-sm">All Reports History</span>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <input type="text" id="filter-history-user" placeholder="Filter by user..." 
+                class="input-field text-xs py-2 px-3 w-full sm:w-40" 
+                oninput="filterHistory()" />
+              <input type="text" id="filter-history-name" placeholder="Filter by name..." 
+                class="input-field text-xs py-2 px-3 w-full sm:w-40" 
+                oninput="filterHistory()" />
+              <select id="filter-history-action" class="input-field text-xs py-2 px-3 w-full sm:w-32" 
+                onchange="filterHistory()">
+                <option value="">All Actions</option>
+                <option value="comment">Comment</option>
+                <option value="report">Report</option>
+                <option value="like">Like</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-slate-500 border-b border-white/5 text-xs uppercase tracking-wide">
+                  <th class="text-left pb-3 pr-4">User</th>
+                  <th class="text-left pb-3 pr-4">Target Name</th>
+                  <th class="text-left pb-3 pr-4">Link</th>
+                  <th class="text-left pb-3 pr-4">Action</th>
+                  <th class="text-left pb-3">Time</th>
+                </tr>
+              </thead>
+              <tbody id="history-table" class="divide-y divide-white/5">
+                <tr><td colspan="5" class="py-6 text-slate-500 text-center text-sm">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="view-users" class="hidden space-y-4">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+                <i data-lucide="shield-check" class="w-4 h-4 text-indigo-400"></i>
+              </div>
+              <h2 class="text-lg font-bold text-white">Access Control</h2>
+            </div>
+            <p class="text-slate-500 text-sm ml-10">Approve or block users who interact with the bot</p>
+          </div>
+          <button onclick="loadUsers()" class="self-start sm:self-auto flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="glass rounded-xl px-4 py-3 card-hover">
+            <p class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Total</p>
+            <p id="users-stat-total" class="text-2xl font-bold text-white">—</p>
+          </div>
+          <div class="glass rounded-xl px-4 py-3 card-hover">
+            <p class="text-[11px] uppercase tracking-wider text-emerald-500/80 font-semibold mb-1">Allowed</p>
+            <p id="users-stat-allowed" class="text-2xl font-bold text-emerald-400">—</p>
+          </div>
+          <div class="glass rounded-xl px-4 py-3 card-hover">
+            <p class="text-[11px] uppercase tracking-wider text-amber-500/80 font-semibold mb-1">Pending</p>
+            <p id="users-stat-pending" class="text-2xl font-bold text-amber-400">—</p>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="glass rounded-2xl p-4">
+          <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input type="text" id="filter-users-search" placeholder="Search by username or Telegram ID..."
+                class="input-field text-sm py-2.5 pl-9" oninput="filterUsers()" />
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap" id="users-filter-pills">
+              <button type="button" class="filter-pill active" data-filter="all" onclick="setUsersFilter('all')">All</button>
+              <button type="button" class="filter-pill" data-filter="allowed" onclick="setUsersFilter('allowed')">Allowed</button>
+              <button type="button" class="filter-pill" data-filter="pending" onclick="setUsersFilter('pending')">Pending</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- User list -->
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <div id="users-list" class="space-y-2.5">
+            <p class="text-slate-500 text-sm py-8 text-center">Loading...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Names Tab -->
+      <div id="view-names" class="hidden space-y-4">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <i data-lucide="tags" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h2 class="text-lg font-bold text-white">Target Names</h2>
+            </div>
+            <p class="text-slate-500 text-sm ml-10">Manage names used in link reports — shown in bot autocomplete</p>
+          </div>
+          <button onclick="loadNames()" class="self-start sm:self-auto flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="glass rounded-xl px-4 py-3 card-hover">
+            <p class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Total Names</p>
+            <p id="names-stat-total" class="text-2xl font-bold text-white">—</p>
+          </div>
+          <div class="glass rounded-xl px-4 py-3 card-hover">
+            <p class="text-[11px] uppercase tracking-wider text-emerald-500/80 font-semibold mb-1">Total Usage</p>
+            <p id="names-stat-usage" class="text-2xl font-bold text-emerald-400">—</p>
+          </div>
+          <div class="glass rounded-xl px-4 py-3 card-hover sm:col-span-2">
+            <p class="text-[11px] uppercase tracking-wider text-indigo-400/80 font-semibold mb-1">Most Active</p>
+            <p id="names-stat-top" class="text-sm font-semibold text-slate-200 truncate">—</p>
+          </div>
+        </div>
+
+        <!-- Add name -->
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Add New Name</p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <i data-lucide="user-plus" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input id="new-name-input" type="text" placeholder="Enter target name (e.g. /មេធំ or plain name)..."
+                class="input-field text-sm py-2.5 pl-9"
+                onkeydown="if(event.key==='Enter') createName()" />
+            </div>
+            <button onclick="createName()" id="add-name-btn" class="btn-primary-emerald justify-center sm:justify-start">
+              <i data-lucide="plus" class="w-4 h-4"></i> Add Name
+            </button>
+          </div>
+          <p id="add-name-msg" class="text-xs mt-2 hidden"></p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="glass rounded-2xl p-4">
+          <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input type="text" id="filter-names-search" placeholder="Search names..."
+                class="input-field text-sm py-2.5 pl-9" oninput="filterNames()" />
+            </div>
+            <select id="filter-names-sort" class="input-field text-sm py-2.5 w-full lg:w-44" onchange="filterNames()">
+              <option value="usage-desc">Most used first</option>
+              <option value="usage-asc">Least used first</option>
+              <option value="recent">Recently used</option>
+              <option value="name-asc">Name A → Z</option>
+              <option value="name-desc">Name Z → A</option>
+            </select>
+            <div class="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/5 self-start lg:self-auto">
+              <button type="button" id="names-view-grid" class="view-toggle-btn active" onclick="setNamesView('grid')" title="Grid view">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+              </button>
+              <button type="button" id="names-view-list" class="view-toggle-btn" onclick="setNamesView('list')" title="List view">
+                <i data-lucide="list" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+          <p id="names-result-count" class="text-xs text-slate-500 mt-3"></p>
+        </div>
+
+        <!-- Names grid / list -->
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <div id="names-full">
+            <p class="text-slate-500 text-sm py-8 text-center">Loading...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Log Tab -->
+      <div id="view-dailylog" class="hidden space-y-4">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                <i data-lucide="calendar-days" class="w-4 h-4 text-sky-400"></i>
+              </div>
+              <h2 class="text-lg font-bold text-white">Daily Summary Log</h2>
+            </div>
+            <p class="text-slate-500 text-sm ml-10">Summaries grouped by day</p>
+          </div>
+          <button onclick="loadDailyLog()" class="self-start sm:self-auto flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/5 self-start w-fit">
+          <button id="dlog-tab-log" onclick="setDlogTab('log')"
+            class="px-4 py-2 rounded-lg text-sm font-semibold transition text-sky-400 bg-sky-500/10">
+            Daily Log
+          </button>
+          <button id="dlog-tab-totals" onclick="setDlogTab('totals')"
+            class="px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-300">
+            Totals
+          </button>
+        </div>
+
+        <!-- Sub-tab: Daily Log -->
+        <div id="dlog-view-log" class="space-y-3">
+          <!-- Filter bar -->
+          <div class="glass rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div class="flex items-center gap-2 flex-1">
+              <i data-lucide="search" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
+              <input type="text" id="dlog-filter-text" placeholder="Search summary text..."
+                class="input-field text-sm py-2" oninput="filterDailyLog()" />
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <input type="date" id="dlog-filter-from" class="input-field text-sm py-2 w-36" onchange="filterDailyLog()" title="From date" />
+              <input type="date" id="dlog-filter-to" class="input-field text-sm py-2 w-36" onchange="filterDailyLog()" title="To date" />
+              <button onclick="clearDlogFilter()" class="text-xs text-slate-500 hover:text-slate-300 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition">Clear</button>
+            </div>
+          </div>
+          <p id="dlog-count" class="text-xs text-slate-500"></p>
+          <div id="dailylog-list" class="space-y-3">
+            <p class="text-slate-500 text-sm py-8 text-center">Loading...</p>
+          </div>
+        </div>
+
+        <!-- Sub-tab: Totals -->
+        <div id="dlog-view-totals" class="hidden space-y-4">
+          <!-- Stats bar -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div class="glass rounded-xl px-4 py-3 card-hover">
+              <p class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Days Tracked</p>
+              <p id="totals-stat-days" class="text-2xl font-bold text-white">—</p>
+            </div>
+            <div class="glass rounded-xl px-4 py-3 card-hover">
+              <p class="text-[11px] uppercase tracking-wider text-sky-500/80 font-semibold mb-1">Total Links</p>
+              <p id="totals-stat-links" class="text-2xl font-bold text-sky-400">—</p>
+            </div>
+            <div class="glass rounded-xl px-4 py-3 card-hover sm:col-span-1 col-span-2">
+              <p class="text-[11px] uppercase tracking-wider text-emerald-500/80 font-semibold mb-1">Avg Links / Day</p>
+              <p id="totals-stat-avg" class="text-2xl font-bold text-emerald-400">—</p>
+            </div>
+          </div>
+          <!-- Combined summary -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-sky-400"></i>
+                <span class="font-semibold text-sm">Combined Summary (All Days)</span>
+              </div>
+              <button onclick="copyTotals()" class="flex items-center gap-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 px-3 py-1.5 rounded-lg transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+              </button>
+            </div>
+            <pre id="totals-box" class="text-sm text-slate-300 whitespace-pre-wrap bg-black/20 rounded-xl p-4 leading-relaxed min-h-[120px]">Loading...</pre>
+          </div>
+          <!-- Per-day breakdown table -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="table" class="w-4 h-4 text-indigo-400"></i>
+              <span class="font-semibold text-sm">Per-Day Breakdown</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-slate-500 border-b border-white/5 text-xs uppercase tracking-wide">
+                    <th class="text-left pb-3 pr-4">Date</th>
+                    <th class="text-left pb-3 pr-4">Links</th>
+                    <th class="text-left pb-3">Names</th>
+                  </tr>
+                </thead>
+                <tbody id="totals-table" class="divide-y divide-white/5">
+                  <tr><td colspan="3" class="py-6 text-slate-500 text-center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    lucide.createIcons();
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+
+    let authToken = localStorage.getItem('dash_token') || '';
+
+    function authHeaders() {
+      return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' };
+    }
+
+    async function doLogin() {
+      const btn = document.getElementById('login-btn');
+      const errEl = document.getElementById('login-error');
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value;
+
+      errEl.classList.add('hidden');
+      btn.textContent = 'Signing in...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        if (!res.ok) throw new Error('bad');
+        const data = await res.json();
+        authToken = data.token;
+        localStorage.setItem('dash_token', authToken);
+        showDashboard();
+      } catch {
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+      }
+    }
+
+    function doLogout() {
+      authToken = '';
+      localStorage.removeItem('dash_token');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('login-pass').value = '';
+      lucide.createIcons();
+    }
+
+    function showDashboard() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      lucide.createIcons();
+      loadAll();
+    }
+
+    function togglePass() {
+      const inp = document.getElementById('login-pass');
+      const icon = document.getElementById('eye-icon');
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        inp.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    // Restore login from localStorage (survives tab close and server restart)
+    async function tryRestoreSession() {
+      if (!authToken) return;
+      try {
+        const res = await fetch(`${API}/api/stats`, { headers: authHeaders() });
+        if (res.ok) {
+          showDashboard();
+        } else {
+          authToken = '';
+          localStorage.removeItem('dash_token');
+        }
+      } catch {
+        authToken = '';
+        localStorage.removeItem('dash_token');
+      }
+    }
+    tryRestoreSession();
+
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+
+    function showTab(tab) {
+      ['overview','reports','history','names','users','dailylog'].forEach(t => {
+        document.getElementById('view-' + t).classList.add('hidden');
+        const btn = document.getElementById('tab-' + t);
+        btn.classList.remove('text-indigo-400','bg-gradient-to-br','from-indigo-500/15','to-indigo-600/10','shadow-lg','shadow-indigo-500/20');
+        btn.classList.add('text-slate-500');
+      });
+      document.getElementById('view-' + tab).classList.remove('hidden');
+      const activeBtn = document.getElementById('tab-' + tab);
+      activeBtn.classList.add('text-indigo-400','bg-gradient-to-br','from-indigo-500/15','to-indigo-600/10','shadow-lg','shadow-indigo-500/20');
+      activeBtn.classList.remove('text-slate-500');
+
+      const main = document.getElementById('main-content');
+      main.classList.remove('max-w-6xl', 'max-w-7xl');
+      main.classList.add(tab === 'users' || tab === 'names' ? 'max-w-7xl' : 'max-w-6xl');
+
+      if (tab === 'history') loadHistory();
+      if (tab === 'dailylog') loadDailyLog();
+      if (tab === 'users' || tab === 'names') lucide.createIcons();
+    }
+
+    // ── API calls ─────────────────────────────────────────────────────────────
+
+    function showToast(message, type = 'error', ttl = 4500) {
+      const wrap = document.getElementById('toast-wrap');
+      if (!wrap) return;
+      const toast = document.createElement('div');
+      toast.className = `toast-item ${type}`;
+      toast.textContent = String(message || 'Something went wrong');
+      wrap.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 180);
+      }, ttl);
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+      if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+      const contentType = res.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const payload = isJson ? await res.json() : await res.text();
+      if (!res.ok) {
+        const detail = isJson ? (payload?.detail || JSON.stringify(payload)) : String(payload || res.statusText);
+        const msg = `Request failed (${res.status}): ${detail}`;
+        showToast(msg, 'error');
+        throw new Error(msg);
+      }
+      return payload;
+    }
+
+    async function loadStats() {
+      const d = await apiFetch(`${API}/api/stats`);
+      document.getElementById('stat-total').textContent = d.total_reports;
+      document.getElementById('stat-today').textContent = d.today_reports;
+      document.getElementById('stat-names').textContent = d.total_names;
+    }
+
+    async function loadSummary() {
+      // Don't overwrite while user is editing
+      if (!document.getElementById('summary-edit-box').classList.contains('hidden')) return;
+      const d = await apiFetch(`${API}/api/summary/today`);
+      document.getElementById('summary-box').textContent = d.summary || 'No reports today.';
+    }
+
+    let namesView = localStorage.getItem('names_view') || 'grid';
+
+    const NAME_COLORS = [
+      ['#6366f1', 'rgba(99,102,241,0.18)'],
+      ['#22c55e', 'rgba(34,197,94,0.18)'],
+      ['#0ea5e9', 'rgba(14,165,233,0.18)'],
+      ['#f59e0b', 'rgba(245,158,11,0.18)'],
+      ['#ec4899', 'rgba(236,72,153,0.18)'],
+      ['#8b5cf6', 'rgba(139,92,246,0.18)'],
+      ['#14b8a6', 'rgba(20,184,166,0.18)'],
+    ];
+
+    function nameColor(name) {
+      let h = 0;
+      for (let i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+      return NAME_COLORS[Math.abs(h) % NAME_COLORS.length];
+    }
+
+    function nameInitial(name) {
+      const clean = (name || '').replace(/^\//, '').trim();
+      if (!clean) return '?';
+      return clean[0];
+    }
+
+    function normalizeNameInput(raw) {
+      return raw.trim().replace(/^\//, '');
+    }
+
+    function updateNamesStats(names) {
+      const totalUsage = names.reduce((s, n) => s + (n.usage_count || 0), 0);
+      const top = names.length
+        ? names.reduce((a, b) => (b.usage_count > a.usage_count ? b : a), names[0])
+        : null;
+      document.getElementById('names-stat-total').textContent = names.length;
+      document.getElementById('names-stat-usage').textContent = totalUsage;
+      document.getElementById('names-stat-top').textContent = top
+        ? `${top.name} (${top.usage_count}×)`
+        : '—';
+    }
+
+    function sortNames(names, sortBy) {
+      const sorted = [...names];
+      switch (sortBy) {
+        case 'usage-asc':
+          return sorted.sort((a, b) => a.usage_count - b.usage_count);
+        case 'name-asc':
+          return sorted.sort((a, b) => a.name.localeCompare(b.name, 'km'));
+        case 'name-desc':
+          return sorted.sort((a, b) => b.name.localeCompare(a.name, 'km'));
+        case 'recent':
+          return sorted.sort((a, b) => new Date(b.last_used) - new Date(a.last_used));
+        case 'usage-desc':
+        default:
+          return sorted.sort((a, b) => b.usage_count - a.usage_count);
+      }
+    }
+
+    function setNamesView(view) {
+      namesView = view;
+      localStorage.setItem('names_view', view);
+      document.getElementById('names-view-grid').classList.toggle('active', view === 'grid');
+      document.getElementById('names-view-list').classList.toggle('active', view === 'list');
+      filterNames();
+      lucide.createIcons();
+    }
+
+    function filterNames() {
+      if (!window.allNames) return;
+      const q = (document.getElementById('filter-names-search')?.value || '').toLowerCase().trim();
+      const sortBy = document.getElementById('filter-names-sort')?.value || 'usage-desc';
+      let filtered = window.allNames.filter(n =>
+        !q || n.name.toLowerCase().includes(q)
+      );
+      filtered = sortNames(filtered, sortBy);
+      const countEl = document.getElementById('names-result-count');
+      if (countEl) {
+        countEl.textContent = filtered.length === window.allNames.length
+          ? `Showing all ${filtered.length} names`
+          : `Showing ${filtered.length} of ${window.allNames.length} names`;
+      }
+      renderNamesFull(filtered);
+    }
+
+    function renderNameCardGrid(n, maxUsage) {
+      const [accent, bg] = nameColor(n.name);
+      const pct = maxUsage > 0 ? Math.round((n.usage_count / maxUsage) * 100) : 0;
+      const initial = nameInitial(n.name);
+      return `
+        <div class="name-card" id="name-${n.id}" style="--name-accent:${accent}">
+          <div class="name-card-top">
+            <div class="name-avatar" style="color:${accent};background:${bg}">${escHtml(initial)}</div>
+            <div class="min-w-0 flex-1">
+              <p class="name-text" title="${escHtml(n.name)}">${escHtml(n.name)}</p>
+              <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span class="text-[10px] font-bold text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded-full">${n.usage_count} uses</span>
+                <span class="text-[11px] text-slate-500 flex items-center gap-1">
+                  <i data-lucide="clock" class="w-3 h-3"></i>${timeAgo(n.last_used)}
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-0.5 flex-shrink-0 -mt-1 -mr-1">
+              <button type="button" onclick="copyText(${JSON.stringify(n.name)})" title="Copy name"
+                class="p-1.5 rounded-lg text-slate-500 hover:text-indigo-300 hover:bg-indigo-500/10 transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" onclick="deleteName(${n.id})" title="Delete name"
+                class="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+          <div class="usage-bar-track" title="${pct}% of top usage">
+            <div class="usage-bar-fill" style="width:${Math.max(pct, 4)}%"></div>
+          </div>
+        </div>`;
+    }
+
+    function renderNameCardList(n, maxUsage) {
+      const [accent, bg] = nameColor(n.name);
+      const pct = maxUsage > 0 ? Math.round((n.usage_count / maxUsage) * 100) : 0;
+      return `
+        <div class="name-card-list" id="name-${n.id}">
+          <div class="name-avatar w-9 h-9 text-sm" style="color:${accent};background:${bg}">${escHtml(nameInitial(n.name))}</div>
+          <div class="min-w-0">
+            <p class="name-text text-sm">${escHtml(n.name)}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">${timeAgo(n.last_used)} · ${formatDate(n.last_used)}</p>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <p class="text-sm font-bold text-indigo-300">${n.usage_count}<span class="text-slate-500 font-normal text-xs">×</span></p>
+            <div class="usage-bar-track w-20 mt-1"><div class="usage-bar-fill" style="width:${Math.max(pct,8)}%;--name-accent:${accent}"></div></div>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button type="button" onclick="copyText(${JSON.stringify(n.name)})" class="p-2 rounded-lg text-slate-500 hover:text-indigo-300 hover:bg-indigo-500/10 transition">
+              <i data-lucide="copy" class="w-4 h-4"></i>
+            </button>
+            <button type="button" onclick="deleteName(${n.id})" class="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>`;
+    }
+
+    function renderNamesOverview(names) {
+      const el = document.getElementById('names-list');
+      if (!names.length) {
+        el.innerHTML = '<p class="text-slate-500 text-sm">No names yet.</p>';
+        return;
+      }
+      const top = sortNames(names, 'usage-desc').slice(0, 8);
+      const maxUsage = top[0]?.usage_count || 1;
+      el.innerHTML = top.map(n => {
+        const [accent, bg] = nameColor(n.name);
+        return `
+          <div class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style="color:${accent};background:${bg}">${escHtml(nameInitial(n.name))}</div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-slate-200 truncate">${escHtml(n.name)}</p>
+            </div>
+            <span class="text-xs font-semibold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full">${n.usage_count}×</span>
+          </div>`;
+      }).join('');
+    }
+
+    function renderNamesFull(names) {
+      const el = document.getElementById('names-full');
+      if (!window.allNames?.length) {
+        el.innerHTML = `
+          <div class="py-14 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+              <i data-lucide="tags" class="w-7 h-7 text-emerald-500/60"></i>
+            </div>
+            <p class="text-slate-300 text-sm font-medium">No target names yet</p>
+            <p class="text-slate-600 text-xs mt-1 max-w-xs mx-auto">Add a name above or wait until someone reports a link with a /name in Telegram</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+      if (!names.length) {
+        el.innerHTML = `
+          <div class="py-12 text-center">
+            <p class="text-slate-400 text-sm">No names match your search</p>
+            <button onclick="document.getElementById('filter-names-search').value=''; filterNames();"
+              class="text-emerald-400 text-xs mt-2 hover:text-emerald-300">Clear search</button>
+          </div>`;
+        return;
+      }
+      const maxUsage = Math.max(...names.map(n => n.usage_count), 1);
+      if (namesView === 'list') {
+        el.className = 'space-y-2';
+        el.innerHTML = names.map(n => renderNameCardList(n, maxUsage)).join('');
+      } else {
+        el.className = 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3';
+        el.innerHTML = names.map(n => renderNameCardGrid(n, maxUsage)).join('');
+      }
+      lucide.createIcons();
+    }
+
+    async function loadNames() {
+      const names = await apiFetch(`${API}/api/names`);
+      window.allNames = names;
+      updateNamesStats(names);
+      renderNamesOverview(names);
+      document.getElementById('names-view-grid').classList.toggle('active', namesView === 'grid');
+      document.getElementById('names-view-list').classList.toggle('active', namesView === 'list');
+      filterNames();
+    }
+
+    async function loadReports() {
+      const reports = await apiFetch(`${API}/api/reports?limit=50`);
+      window.allReports = reports; // Store for filtering
+      renderReportsTable(reports);
+    }
+
+    function renderReportsTable(reports) {
+      const tbody = document.getElementById('reports-table');
+      if (!reports.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-slate-500 text-center text-sm">No reports found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = reports.map(r => `
+        <tr class="transition">
+          <td class="py-3 pr-4 text-slate-400 text-xs">${escHtml(r.username || '—')}</td>
+          <td class="py-3 pr-4 font-medium text-slate-200">${escHtml(r.target_name)}</td>
+          <td class="py-3 pr-4">
+            ${r.link
+              ? `<a href="${escHtml(r.link)}" target="_blank" class="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition truncate max-w-[160px]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span class="truncate">${escHtml(r.link)}</span>
+                </a>`
+              : '<span class="text-slate-600">—</span>'}
+          </td>
+          <td class="py-3 pr-4">
+            <span class="badge badge-${r.action}">${escHtml(r.action)} ${escHtml(r.action_detail || '')}</span>
+          </td>
+          <td class="py-3 text-slate-500 text-xs whitespace-nowrap">${formatDate(r.created_at)}</td>
+        </tr>`).join('');
+    }
+
+    function filterReports() {
+      if (!window.allReports) return;
+      const userFilter = document.getElementById('filter-user').value.toLowerCase();
+      const nameFilter = document.getElementById('filter-name').value.toLowerCase();
+      const actionFilter = document.getElementById('filter-action').value.toLowerCase();
+
+      const filtered = window.allReports.filter(r => {
+        const matchUser = !userFilter || (r.username || '').toLowerCase().includes(userFilter);
+        const matchName = !nameFilter || (r.target_name || '').toLowerCase().includes(nameFilter);
+        const matchAction = !actionFilter || (r.action || '').toLowerCase() === actionFilter;
+        return matchUser && matchName && matchAction;
+      });
+
+      renderReportsTable(filtered);
+    }
+
+    async function resetSummary() {
+      if (!confirm('Reset to auto-generated summary? This removes your manual edit.')) return;
+      await apiFetch(`${API}/api/summary/today`, { method: 'DELETE' });
+      await loadSummary();
+      showToast('Summary reset to auto-generated', 'success', 2500);
+    }
+
+    function startEditSummary() {
+      const pre = document.getElementById('summary-box');
+      const textarea = document.getElementById('summary-edit-box');
+      textarea.value = pre.textContent;
+      pre.classList.add('hidden');
+      textarea.classList.remove('hidden');
+      document.getElementById('edit-summary-btn').classList.add('hidden');
+      document.getElementById('reset-summary-btn').classList.add('hidden');
+      const save = document.getElementById('save-summary-btn');
+      const cancel = document.getElementById('cancel-summary-btn');
+      save.classList.remove('hidden'); save.classList.add('flex');
+      cancel.classList.remove('hidden'); cancel.classList.add('flex');
+      textarea.focus();
+    }
+
+    function cancelEditSummary() {
+      document.getElementById('summary-box').classList.remove('hidden');
+      document.getElementById('summary-edit-box').classList.add('hidden');
+      document.getElementById('edit-summary-btn').classList.remove('hidden');
+      document.getElementById('reset-summary-btn').classList.remove('hidden');
+      const save = document.getElementById('save-summary-btn');
+      const cancel = document.getElementById('cancel-summary-btn');
+      save.classList.add('hidden'); save.classList.remove('flex');
+      cancel.classList.add('hidden'); cancel.classList.remove('flex');
+    }
+
+    async function saveSummary() {
+      const textarea = document.getElementById('summary-edit-box');
+      const text = textarea.value;
+      const saveBtn = document.getElementById('save-summary-btn');
+      saveBtn.disabled = true;
+      try {
+        await apiFetch(`${API}/api/summary/today`, {
+          method: 'PUT',
+          body: JSON.stringify({ summary: text })
+        });
+        document.getElementById('summary-box').textContent = text;
+        cancelEditSummary();
+        showToast('Summary saved', 'success', 2500);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function copySummary() {
+      const editing = !document.getElementById('summary-edit-box').classList.contains('hidden');
+      const text = editing
+        ? document.getElementById('summary-edit-box').value
+        : document.getElementById('summary-box').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('[onclick="copySummary()"]');
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied';
+        setTimeout(() => { btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy'; }, 2000);
+      });
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatDate(iso) {
+      return new Date(iso).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function showAddNameMsg(text, isError) {
+      const el = document.getElementById('add-name-msg');
+      el.textContent = text;
+      el.className = `text-xs mt-2 ${isError ? 'text-red-400' : 'text-emerald-400'}`;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    async function createName() {
+      const input = document.getElementById('new-name-input');
+      const btn = document.getElementById('add-name-btn');
+      const name = normalizeNameInput(input.value);
+      if (!name) return;
+      btn.disabled = true;
+      try {
+        const d = await apiFetch(`${API}/api/names`, {
+          method: 'POST',
+          body: JSON.stringify({ name })
+        });
+        if (d.error) {
+          showAddNameMsg(d.error, true);
+          return;
+        }
+        input.value = '';
+        showAddNameMsg(`Added "${name}" successfully`, false);
+        await loadNames();
+        loadStats();
+      } finally {
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    async function deleteName(id) {
+      if (!confirm('Delete this name?')) return;
+      await apiFetch(`${API}/api/names/${id}`, { method: 'DELETE' });
+      await loadNames();
+      loadStats();
+    }
+
+    let usersFilter = 'all';
+
+    function userInitials(name) {
+      if (!name) return '?';
+      const clean = name.replace(/^@/, '');
+      return (clean[0] || '?').toUpperCase();
+    }
+
+    function timeAgo(iso) {
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'Just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return `${days}d ago`;
+      return formatDate(iso);
+    }
+
+    function updateUsersStats(users) {
+      const allowed = users.filter(u => u.allowed).length;
+      const pending = users.filter(u => !u.allowed).length;
+      document.getElementById('users-stat-total').textContent = users.length;
+      document.getElementById('users-stat-allowed').textContent = allowed;
+      document.getElementById('users-stat-pending').textContent = pending;
+    }
+
+    function setUsersFilter(filter) {
+      usersFilter = filter;
+      document.querySelectorAll('#users-filter-pills .filter-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      filterUsers();
+    }
+
+    function filterUsers() {
+      if (!window.allUsers) return;
+      const q = (document.getElementById('filter-users-search')?.value || '').toLowerCase().trim();
+      const filtered = window.allUsers.filter(u => {
+        const matchSearch = !q
+          || (u.username || '').toLowerCase().includes(q)
+          || String(u.user_id).includes(q);
+        const matchFilter = usersFilter === 'all'
+          || (usersFilter === 'allowed' && u.allowed)
+          || (usersFilter === 'pending' && !u.allowed);
+        return matchSearch && matchFilter;
+      });
+      renderUsersList(filtered);
+    }
+
+    function renderUsersList(users) {
+      const el = document.getElementById('users-list');
+      if (!window.allUsers?.length) {
+        el.innerHTML = `
+          <div class="py-12 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="users" class="w-6 h-6 text-slate-600"></i>
+            </div>
+            <p class="text-slate-400 text-sm font-medium">No users yet</p>
+            <p class="text-slate-600 text-xs mt-1">Users appear here after they message the bot</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+      if (!users.length) {
+        el.innerHTML = `
+          <div class="py-10 text-center">
+            <p class="text-slate-400 text-sm">No users match your search</p>
+            <button onclick="document.getElementById('filter-users-search').value=''; setUsersFilter('all');"
+              class="text-indigo-400 text-xs mt-2 hover:text-indigo-300">Clear filters</button>
+          </div>`;
+        return;
+      }
+      el.innerHTML = users.map(u => {
+        const statusClass = u.allowed ? 'allowed' : 'blocked';
+        const statusLabel = u.allowed ? 'Allowed' : 'Pending';
+        const statusBadge = u.allowed
+          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
+          : 'bg-amber-500/15 text-amber-400 border-amber-500/20';
+        const dotClass = u.allowed ? 'status-dot-allowed' : 'status-dot-blocked';
+        return `
+        <div class="user-card ${statusClass}" id="user-row-${u.id}">
+          <div class="avatar-wrap">
+            ${u.photo_url
+              ? `<img src="${escHtml(u.photo_url)}" alt="" onerror="const p=this.parentElement;const f=p&&p.querySelector('.avatar-fallback');if(f){f.style.display='flex';}this.remove();">`
+              : ''}
+            <div class="avatar-fallback" style="${u.photo_url ? 'display:none' : ''}">${userInitials(u.username)}</div>
+            <span class="avatar-status ${dotClass}"></span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="font-semibold text-slate-100 text-sm truncate">${escHtml(u.username || 'Unknown user')}</p>
+              <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${statusBadge}">${statusLabel}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <button type="button" onclick="copyText('${escHtml(u.user_id)}')" title="Copy Telegram ID"
+                class="text-xs text-slate-500 hover:text-indigo-300 font-mono flex items-center gap-1 transition">
+                <i data-lucide="hash" class="w-3 h-3"></i>${escHtml(u.user_id)}
+              </button>
+              <span class="text-slate-700">·</span>
+              <span class="text-xs text-slate-500 flex items-center gap-1">
+                <i data-lucide="clock" class="w-3 h-3"></i>${timeAgo(u.last_seen)}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-600 mt-0.5">Joined ${formatDate(u.first_seen)}</p>
+          </div>
+          <div class="user-card-actions flex items-center gap-3 flex-shrink-0">
+            <div class="flex flex-col items-end gap-0.5">
+              <span class="text-[10px] text-slate-500 uppercase tracking-wide">Access</span>
+              <label class="toggle-switch" title="${u.allowed ? 'Revoke access' : 'Grant access'}">
+                <input type="checkbox" ${u.allowed ? 'checked' : ''} onchange="toggleUserAccess(${u.id}, this)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <button onclick="deleteUser(${u.id})"
+              class="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition"
+              title="Remove user">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    async function loadUsers() {
+      const users = await apiFetch(`${API}/api/users`);
+      window.allUsers = users;
+      updateUsersStats(users);
+      filterUsers();
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+
+    async function toggleUserAccess(id, input) {
+      const allowed = input.checked;
+      input.disabled = true;
+      try {
+        await apiFetch(`${API}/api/users/${id}/set`, {
+          method: 'PATCH',
+          body: JSON.stringify({ allowed })
+        });
+        await loadUsers();
+      } catch {
+        input.checked = !allowed;
+      } finally {
+        input.disabled = false;
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Delete this user?')) return;
+      await apiFetch(`${API}/api/users/${id}`, { method: 'DELETE' });
+      await loadUsers();
+    }
+
+    // ── History & Charts ──────────────────────────────────────────────────────
+
+    let charts = {};
+
+    async function loadHistory() {
+      try {
+        const data = await apiFetch(`${API}/api/reports?limit=1000`);
+        console.log('History data loaded:', data.length, 'reports');
+        if (!data || data.length === 0) {
+          console.warn('No reports data available');
+          showToast('No reports data available yet', 'error', 3000);
+        }
+        renderCharts(data);
+        renderHistoryTable(data);
+      } catch (e) {
+        console.error('Failed to load history:', e);
+        showToast('Failed to load history data', 'error');
+      }
+    }
+
+    function renderCharts(reports) {
+      // Destroy existing charts
+      Object.values(charts).forEach(chart => chart?.destroy());
+      charts = {};
+
+      console.log('Rendering charts with', reports?.length || 0, 'reports');
+
+      // Handle empty data
+      if (!reports || reports.length === 0) {
+        console.warn('No data to render charts');
+        // Show empty state message
+        ['chart-timeline', 'chart-actions', 'chart-users', 'chart-names'].forEach(id => {
+          const canvas = document.getElementById(id);
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '14px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+          }
+        });
+        return;
+      }
+
+      // Timeline Chart - Reports per day
+      const dateGroups = {};
+      reports.forEach(r => {
+        const date = new Date(r.created_at).toLocaleDateString();
+        dateGroups[date] = (dateGroups[date] || 0) + 1;
+      });
+      const dates = Object.keys(dateGroups).slice(-14); // Last 14 days
+      const counts = dates.map(d => dateGroups[d]);
+
+      console.log('Timeline data:', { dates, counts });
+
+      charts.timeline = new Chart(document.getElementById('chart-timeline'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Reports',
+            data: counts,
+            borderColor: '#818cf8',
+            backgroundColor: 'rgba(129, 140, 248, 0.2)',
+            tension: 0.4,
+            fill: true,
+            borderWidth: 3,
+            pointBackgroundColor: '#818cf8',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 17, 23, 0.95)',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: 'rgba(129, 140, 248, 0.3)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false
+            }
+          },
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              ticks: { color: '#94a3b8', font: { size: 11 } }, 
+              grid: { color: 'rgba(255,255,255,0.08)' },
+              border: { display: false }
+            },
+            x: { 
+              ticks: { color: '#94a3b8', font: { size: 11 } }, 
+              grid: { display: false },
+              border: { display: false }
+            }
+          }
+        }
+      });
+
+      // Action Types Pie Chart
+      const actionGroups = {};
+      reports.forEach(r => {
+        const action = r.action || 'unknown';
+        actionGroups[action] = (actionGroups[action] || 0) + 1;
+      });
+
+      charts.actions = new Chart(document.getElementById('chart-actions'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(actionGroups),
+          datasets: [{
+            data: Object.values(actionGroups),
+            backgroundColor: ['#818cf8', '#f87171', '#4ade80', '#fbbf24', '#a78bfa'],
+            borderWidth: 2,
+            borderColor: '#0d1220',
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { 
+            legend: { 
+              position: 'bottom', 
+              labels: { 
+                color: '#cbd5e1', 
+                padding: 16,
+                font: { size: 12, weight: '500' },
+                usePointStyle: true,
+                pointStyle: 'circle'
+              } 
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 17, 23, 0.95)',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: 'rgba(129, 140, 248, 0.3)',
+              borderWidth: 1,
+              padding: 12
+            }
+          }
+        }
+      });
+
+      // Top Users Bar Chart
+      const userGroups = {};
+      reports.forEach(r => {
+        const user = r.username || 'Unknown';
+        userGroups[user] = (userGroups[user] || 0) + 1;
+      });
+      const topUsers = Object.entries(userGroups).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      charts.users = new Chart(document.getElementById('chart-users'), {
+        type: 'bar',
+        data: {
+          labels: topUsers.map(u => u[0]),
+          datasets: [{
+            label: 'Reports',
+            data: topUsers.map(u => u[1]),
+            backgroundColor: 'rgba(56, 189, 248, 0.8)',
+            borderColor: '#38bdf8',
+            borderWidth: 1,
+            borderRadius: 6,
+            hoverBackgroundColor: '#38bdf8'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 17, 23, 0.95)',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: 'rgba(56, 189, 248, 0.3)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { color: '#94a3b8', font: { size: 11 } }, 
+              grid: { color: 'rgba(255,255,255,0.08)' },
+              border: { display: false }
+            },
+            y: { 
+              ticks: { color: '#cbd5e1', font: { size: 11 } }, 
+              grid: { display: false },
+              border: { display: false }
+            }
+          }
+        }
+      });
+
+      // Top Names Bar Chart
+      const nameGroups = {};
+      reports.forEach(r => {
+        const name = r.target_name || 'Unknown';
+        nameGroups[name] = (nameGroups[name] || 0) + 1;
+      });
+      const topNames = Object.entries(nameGroups).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      charts.names = new Chart(document.getElementById('chart-names'), {
+        type: 'bar',
+        data: {
+          labels: topNames.map(n => n[0]),
+          datasets: [{
+            label: 'Reports',
+            data: topNames.map(n => n[1]),
+            backgroundColor: 'rgba(251, 191, 36, 0.8)',
+            borderColor: '#fbbf24',
+            borderWidth: 1,
+            borderRadius: 6,
+            hoverBackgroundColor: '#fbbf24'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 17, 23, 0.95)',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: 'rgba(251, 191, 36, 0.3)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { color: '#94a3b8', font: { size: 11 } }, 
+              grid: { color: 'rgba(255,255,255,0.08)' },
+              border: { display: false }
+            },
+            y: { 
+              ticks: { color: '#cbd5e1', font: { size: 11 } }, 
+              grid: { display: false },
+              border: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function renderHistoryTable(reports) {
+      window.allHistoryReports = reports; // Store for filtering
+      applyHistoryFilter();
+    }
+
+    function applyHistoryFilter() {
+      if (!window.allHistoryReports) return;
+      
+      const userFilter = document.getElementById('filter-history-user')?.value.toLowerCase() || '';
+      const nameFilter = document.getElementById('filter-history-name')?.value.toLowerCase() || '';
+      const actionFilter = document.getElementById('filter-history-action')?.value.toLowerCase() || '';
+
+      const filtered = window.allHistoryReports.filter(r => {
+        const matchUser = !userFilter || (r.username || '').toLowerCase().includes(userFilter);
+        const matchName = !nameFilter || (r.target_name || '').toLowerCase().includes(nameFilter);
+        const matchAction = !actionFilter || (r.action || '').toLowerCase() === actionFilter;
+        return matchUser && matchName && matchAction;
+      });
+
+      const tbody = document.getElementById('history-table');
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-slate-500 text-center text-sm">No reports found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td class="py-3 pr-4 text-slate-300">${r.username || '—'}</td>
+          <td class="py-3 pr-4 text-slate-300">${r.target_name || '—'}</td>
+          <td class="py-3 pr-4"><a href="${r.link}" target="_blank" class="text-indigo-400 hover:text-indigo-300 text-xs truncate block max-w-xs">${r.link || '—'}</a></td>
+          <td class="py-3 pr-4"><span class="badge badge-${r.action || 'unknown'}">${r.action || '—'}</span></td>
+          <td class="py-3 text-slate-500 text-xs">${new Date(r.created_at).toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    function filterHistory() {
+      applyHistoryFilter();
+    }
+
+    // ── Daily Log ─────────────────────────────────────────────────────────────
+
+    let _dlogData = [];
+    let _dlogTab = 'log';
+
+    function setDlogTab(tab) {
+      _dlogTab = tab;
+      ['log','totals'].forEach(t => {
+        const btn = document.getElementById('dlog-tab-' + t);
+        const view = document.getElementById('dlog-view-' + t);
+        const active = t === tab;
+        btn.className = `px-4 py-2 rounded-lg text-sm font-semibold transition ${active ? 'text-sky-400 bg-sky-500/10' : 'text-slate-500 hover:text-slate-300'}`;
+        view.classList.toggle('hidden', !active);
+      });
+      if (tab === 'totals') renderTotals(_dlogData);
+    }
+
+    async function loadDailyLog() {
+      document.getElementById('dailylog-list').innerHTML = '<p class="text-slate-500 text-sm py-8 text-center">Loading...</p>';
+      _dlogData = await apiFetch(`${API}/api/summary/log`);
+      filterDailyLog();
+      if (_dlogTab === 'totals') renderTotals(_dlogData);
+    }
+
+    function clearDlogFilter() {
+      document.getElementById('dlog-filter-text').value = '';
+      document.getElementById('dlog-filter-from').value = '';
+      document.getElementById('dlog-filter-to').value = '';
+      filterDailyLog();
+    }
+
+    function filterDailyLog() {
+      const q = (document.getElementById('dlog-filter-text').value || '').toLowerCase().trim();
+      const from = document.getElementById('dlog-filter-from').value;
+      const to = document.getElementById('dlog-filter-to').value;
+      const filtered = _dlogData.filter(d => {
+        if (q && !d.summary.toLowerCase().includes(q) && !d.date.includes(q)) return false;
+        if (from && d.date < from) return false;
+        if (to && d.date > to) return false;
+        return true;
+      });
+      const countEl = document.getElementById('dlog-count');
+      countEl.textContent = filtered.length === _dlogData.length
+        ? `Showing all ${filtered.length} days`
+        : `Showing ${filtered.length} of ${_dlogData.length} days`;
+      renderDailyLogList(filtered);
+    }
+
+    function renderDailyLogList(days) {
+      const el = document.getElementById('dailylog-list');
+      if (!days.length) {
+        el.innerHTML = '<p class="text-slate-500 text-sm py-8 text-center">No summaries match your filter.</p>';
+        return;
+      }
+      el.innerHTML = days.map(d => {
+        const label = new Date(d.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+        const editedBadge = d.edited
+          ? '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">Edited</span>'
+          : '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-slate-500">Auto</span>';
+        return `
+        <div class="glass rounded-2xl p-5" id="dlog-card-${d.date}">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-sky-400"></i>
+              <span class="font-semibold text-sm text-white">${label}</span>
+              ${editedBadge}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs text-slate-500 mr-1">${d.total} reports</span>
+              <button onclick="copyDayLog(this)" data-summary="${escHtml(d.summary)}" title="Copy"
+                class="flex items-center gap-1 text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 px-2.5 py-1.5 rounded-lg transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Copy</span>
+              </button>
+              <button onclick="deleteDayLog('${d.date}')" title="Delete this day"
+                class="flex items-center gap-1 text-xs bg-red-500/10 hover:bg-red-500/25 text-red-400 px-2.5 py-1.5 rounded-lg transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span class="hidden sm:inline"> Delete</span>
+              </button>
+            </div>
+          </div>
+          <pre class="text-sm text-slate-300 whitespace-pre-wrap bg-black/20 rounded-xl p-4 leading-relaxed">${escHtml(d.summary)}</pre>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    async function deleteDayLog(date) {
+      if (!confirm(`Delete all reports and summary for ${date}?`)) return;
+      await apiFetch(`${API}/api/summary/day/${date}`, { method: 'DELETE' });
+      _dlogData = _dlogData.filter(d => d.date !== date);
+      filterDailyLog();
+      if (_dlogTab === 'totals') renderTotals(_dlogData);
+      showToast(`Deleted ${date}`, 'success', 2500);
+    }
+
+    function copyDayLog(btn) {
+      const text = btn.getAttribute('data-summary');
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Copied';
+        lucide.createIcons();
+        setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 2000);
+      });
+    }
+
+    function renderTotals(days) {
+      if (!days.length) {
+        document.getElementById('totals-box').textContent = 'No data yet.';
+        document.getElementById('totals-table').innerHTML = '<tr><td colspan="3" class="py-6 text-slate-500 text-center">No data</td></tr>';
+        return;
+      }
+
+      // Aggregate: sum links per name across all days
+      const nameMap = {};  // name -> total links
+      let grandTotal = 0;
+
+      days.forEach(d => {
+        d.summary.split('\n').forEach(line => {
+          // match: - ការងារ: Link {name} {count} link ...
+          const m = line.match(/^-\s*ការងារ:\s*Link\s+(.+?)\s+(\d+)\s+link/);
+          if (m) {
+            const name = m[1].trim();
+            const count = parseInt(m[2], 10);
+            nameMap[name] = (nameMap[name] || 0) + count;
+            grandTotal += count;
+          }
+        });
+      });
+
+      // Stats
+      document.getElementById('totals-stat-days').textContent = days.length;
+      document.getElementById('totals-stat-links').textContent = grandTotal;
+      document.getElementById('totals-stat-avg').textContent = (grandTotal / days.length).toFixed(1);
+
+      // Combined summary text
+      const fromDate = days[days.length - 1]?.date || '';
+      const toDate = days[0]?.date || '';
+      const fmtDate = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
+      const lines = [
+        `+គោរពរាយការណ៍ជូនមេ សរុបរបាយការណ៍ Link ពី ${fmtDate(fromDate)} ដល់ ${fmtDate(toDate)}`,
+        '',
+        '+ ការងារ : comment',
+      ];
+      Object.entries(nameMap).sort((a,b) => b[1]-a[1]).forEach(([name, count]) => {
+        lines.push('');
+        lines.push(`- ការងារ: Link ${name} ${count} link សរុប`);
+      });
+      lines.push('');
+      lines.push(`សរុបមានចំនួន ${grandTotal} link`);
+      lines.push('សូមគោរពអរគុណមេ🙏🙏');
+      document.getElementById('totals-box').textContent = lines.join('\n');
+
+      // Per-day table
+      document.getElementById('totals-table').innerHTML = days.map(d => {
+        const label = new Date(d.date + 'T00:00:00').toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+        // count names in this day
+        const namesInDay = new Set();
+        let dayLinks = 0;
+        d.summary.split('\n').forEach(line => {
+          const m = line.match(/^-\s*ការងារ:\s*Link\s+(.+?)\s+(\d+)\s+link/);
+          if (m) { namesInDay.add(m[1].trim()); dayLinks += parseInt(m[2], 10); }
+        });
+        return `<tr>
+          <td class="py-3 pr-4 text-slate-300 text-xs whitespace-nowrap">${label}</td>
+          <td class="py-3 pr-4 font-semibold text-sky-400">${dayLinks}</td>
+          <td class="py-3 text-slate-400 text-xs">${[...namesInDay].join(', ') || '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function copyTotals() {
+      const text = document.getElementById('totals-box').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('[onclick="copyTotals()"]');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Copied';
+        lucide.createIcons();
+        setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 2000);
+      });
+    }
+
+    async function loadAll() {
+      try {
+        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        await Promise.all([loadStats(), loadSummary(), loadNames(), loadReports(), loadUsers()]);
+        lucide.createIcons();
+      } catch (e) {
+        const msg = e?.message || 'Failed to refresh dashboard';
+        showToast(msg, 'error');
+        console.error(e);
+      }
+    }
+
+    setInterval(() => { if (authToken) loadAll(); }, 30000);
+
+    // ── PWA Service Worker ────────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // ── Disable double-tap zoom (iOS Safari fallback) ─────────────────────────
+    let _lastTap = 0;
+    document.addEventListener('touchend', e => {
+      const now = Date.now();
+      if (now - _lastTap < 300) e.preventDefault();
+      _lastTap = now;
+    }, { passive: false });
+  </script>
+</body>
+</html>
